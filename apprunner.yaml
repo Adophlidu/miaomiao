@@ -1,0 +1,22 @@
+# AWS App Runner source-based config for apps/server (no Docker needed — App Runner
+# builds from the connected GitHub repo). Secrets (DATABASE_URL, BETTER_AUTH_SECRET)
+# and the public URLs (BETTER_AUTH_URL, CORS_ORIGIN) are injected via the App Runner
+# service config (Secrets Manager + env), not committed here. See deploy/aws-deploy.md.
+version: 1.0
+runtime: nodejs22
+build:
+  commands:
+    build:
+      - corepack enable
+      - corepack prepare pnpm@11.6.0 --activate
+      - pnpm install --frozen-lockfile
+      - pnpm --filter server build
+run:
+  command: node apps/server/dist/index.mjs
+  network:
+    port: 3000
+  env:
+    - name: NODE_ENV
+      value: production
+    - name: PORT
+      value: "3000"
