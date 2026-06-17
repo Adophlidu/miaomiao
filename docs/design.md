@@ -50,7 +50,7 @@ Dark: warm espresso surfaces (`#251b16` …), `primary-fixed-dim` `#ffb783` acce
 2. **Dashboard** (`/_auth/dashboard`) — balance card (mascot + paw watermark + 本月结余 chip), 最近支出 list, 本月概览 placeholder.
 3. **Record** (`/_auth/record`) — amount + 支出/收入 toggle + category chips + numeric keypad + paw "保存这一笔".
 4. **Bills** (`/_auth/transactions`) — income/expense summary + newest-first bill list.
-5. **Settings** (`/_auth/categories`) — 外观设置 dark-mode switch, category cards (colored left border, live 笔数 + 已用), add/edit/delete, logout.
+5. **Settings** (`/_auth/categories`) — profile card (avatar + name + email + edit), 外观设置 dark-mode switch, simplified category rows (icon + name + 笔数 + chevron → tap to expand inline rename/recolor/delete), add category, logout. (`screen-5-settings-refactor.png`)
 6. **Stats** (`/_auth/stats`) — friendly "coming soon" placeholder.
 
 ## Motion

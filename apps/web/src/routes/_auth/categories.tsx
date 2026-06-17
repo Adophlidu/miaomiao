@@ -2,20 +2,18 @@ import { Button } from "@miaomiao/ui/components/button";
 import { Input } from "@miaomiao/ui/components/input";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Check, LogOut, Moon, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronRight, LogOut, Moon, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { useTheme } from "@/components/theme-provider";
 import { authClient } from "@/lib/auth-client";
 import { categoryIcon } from "@/lib/category-icon";
-import { centsToMajor } from "@/lib/money";
 import { trpc } from "@/utils/trpc";
 import type { RouterOutputs } from "@/utils/trpc";
 
 type TxType = "income" | "expense";
 type Category = RouterOutputs["category"]["list"][number];
-type Usage = { count: number; spent: number };
 
 const DEFAULT_COLOR = "#e67e22";
 
@@ -27,12 +25,9 @@ function SettingsRoute() {
   const categories = useQuery(trpc.category.list.queryOptions());
   const transactions = useQuery(trpc.transaction.list.queryOptions({}));
 
-  const usage = new Map<number, Usage>();
+  const counts = new Map<number, number>();
   for (const tx of transactions.data ?? []) {
-    const u = usage.get(tx.category.id) ?? { count: 0, spent: 0 };
-    u.count += 1;
-    u.spent += tx.amount;
-    usage.set(tx.category.id, u);
+    counts.set(tx.category.id, (counts.get(tx.category.id) ?? 0) + 1);
   }
 
   const expense = categories.data?.filter((c) => c.type === "expense") ?? [];
@@ -47,34 +42,23 @@ function SettingsRoute() {
       </header>
 
       <main className="space-y-6 px-5 pt-5">
+        <ProfileCard />
         <AppearanceSection />
 
         <CategorySection
           title="支出类别"
           type="expense"
           items={expense}
-          usage={usage}
+          counts={counts}
           refetch={categories.refetch}
         />
         <CategorySection
           title="收入类别"
           type="income"
           items={income}
-          usage={usage}
+          counts={counts}
           refetch={categories.refetch}
         />
-
-        {/* Paws footer */}
-        <div className="py-2 text-center opacity-70">
-          <img
-            src="/illustrations/paws.png"
-            alt=""
-            className="mx-auto size-36 rounded-3xl object-cover"
-          />
-          <p className="mt-2 text-sm text-on-surface-variant">
-            点类别卡片右上角的铅笔即可改名字或颜色，喵～
-          </p>
-        </div>
 
         <LogoutButton />
       </main>
@@ -82,12 +66,103 @@ function SettingsRoute() {
   );
 }
 
+function ProfileCard() {
+  const { data: session } = authClient.useSession();
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = () => {
+    setName(session?.user.name ?? "");
+    setEditing(true);
+  };
+
+  const save = async () => {
+    const next = name.trim();
+    if (!next) return toast.error("名字不能为空，喵～");
+    setSaving(true);
+    await authClient.updateUser(
+      { name: next },
+      {
+        onSuccess: () => {
+          toast.success("已更新，喵～");
+          setEditing(false);
+        },
+        onError: (err) => {
+          toast.error(err.error.message || "更新失败");
+        },
+      },
+    );
+    setSaving(false);
+  };
+
+  return (
+    <section className="flex items-center justify-between rounded-3xl bg-surface-container-low p-4 soft-shadow">
+      <div className="flex min-w-0 items-center gap-4">
+        <div className="size-16 shrink-0 overflow-hidden rounded-full border-2 border-primary-container">
+          <img
+            src="/illustrations/avatar-categories.png"
+            alt="头像"
+            className="size-full object-cover"
+          />
+        </div>
+        {editing ? (
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={50}
+            aria-label="昵称"
+            className="h-10"
+          />
+        ) : (
+          <div className="min-w-0">
+            <h2 className="truncate font-display text-lg font-semibold text-on-surface">
+              {session?.user.name ?? "喵管家"}
+            </h2>
+            <p className="truncate text-sm text-on-surface-variant">{session?.user.email}</p>
+          </div>
+        )}
+      </div>
+      {editing ? (
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            aria-label="保存"
+            disabled={saving}
+            onClick={save}
+            className="text-primary transition-colors hover:opacity-80"
+          >
+            <Check className="size-5" />
+          </button>
+          <button
+            type="button"
+            aria-label="取消"
+            onClick={() => setEditing(false)}
+            className="text-on-surface-variant transition-colors hover:opacity-80"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          aria-label="编辑昵称"
+          onClick={startEdit}
+          className="shrink-0 text-primary transition-colors hover:opacity-80"
+        >
+          <Pencil className="size-5" />
+        </button>
+      )}
+    </section>
+  );
+}
+
 function AppearanceSection() {
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   return (
-    <section>
-      <h2 className="mb-3 font-display text-xl font-semibold text-on-surface">外观设置</h2>
+    <section className="space-y-3">
+      <h2 className="ml-1 font-display text-xl font-semibold text-on-surface">外观设置</h2>
       <div className="flex items-center justify-between rounded-3xl bg-surface-container-low p-4 soft-shadow">
         <div className="flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-full bg-primary-fixed text-primary">
@@ -123,23 +198,22 @@ function CategorySection({
   title,
   type,
   items,
-  usage,
+  counts,
   refetch,
 }: {
   title: string;
   type: TxType;
   items: Category[];
-  usage: Map<number, Usage>;
+  counts: Map<number, number>;
   refetch: () => void;
 }) {
   const [adding, setAdding] = useState(false);
-  const maxSpent = Math.max(1, ...items.map((c) => usage.get(c.id)?.spent ?? 0));
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-2">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl font-semibold text-on-surface">{title}</h2>
-        <Button size="sm" onClick={() => setAdding((v) => !v)}>
+        <h2 className="ml-1 font-display text-xl font-semibold text-on-surface">{title}</h2>
+        <Button size="xs" onClick={() => setAdding((v) => !v)}>
           <Plus className="size-4" />
           新增类别
         </Button>
@@ -156,21 +230,13 @@ function CategorySection({
       ) : null}
 
       {items.length === 0 ? (
-        <p className="rounded-3xl bg-surface-container-low p-6 text-center text-on-surface-variant soft-shadow">
+        <p className="rounded-3xl bg-surface-container-low p-5 text-center text-sm text-on-surface-variant soft-shadow">
           还没有{title}，喵～
         </p>
       ) : (
-        <div className="space-y-3">
-          {items.map((c) => (
-            <CategoryCard
-              key={c.id}
-              item={c}
-              usage={usage.get(c.id) ?? { count: 0, spent: 0 }}
-              maxSpent={maxSpent}
-              refetch={refetch}
-            />
-          ))}
-        </div>
+        items.map((c) => (
+          <CategoryRow key={c.id} item={c} count={counts.get(c.id) ?? 0} refetch={refetch} />
+        ))
       )}
     </section>
   );
@@ -214,18 +280,16 @@ function AddCategoryForm({ type, onDone }: { type: TxType; onDone: () => void })
   );
 }
 
-function CategoryCard({
+function CategoryRow({
   item,
-  usage,
-  maxSpent,
+  count,
   refetch,
 }: {
   item: Category;
-  usage: Usage;
-  maxSpent: number;
+  count: number;
   refetch: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState(item.name);
   const [color, setColor] = useState(item.color ?? DEFAULT_COLOR);
   const Icon = categoryIcon(item.name);
@@ -235,7 +299,7 @@ function CategoryCard({
     trpc.category.update.mutationOptions({
       onSuccess: () => {
         toast.success("已保存，喵～");
-        setEditing(false);
+        setOpen(false);
         refetch();
       },
     }),
@@ -250,108 +314,62 @@ function CategoryCard({
   );
 
   return (
-    <div
-      className="rounded-3xl bg-surface-container p-4 soft-shadow"
-      style={{ borderLeft: `8px solid ${accent}` }}
-    >
-      <div className="flex items-start justify-between">
+    <div className="overflow-hidden rounded-3xl bg-surface-container soft-shadow">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between p-3 text-left transition-transform active:scale-[0.99]"
+      >
         <div className="flex items-center gap-3">
-          <div
-            className="flex size-12 items-center justify-center rounded-full bg-white"
+          <span
+            className="flex size-10 items-center justify-center rounded-full bg-white"
             style={{ color: accent }}
           >
-            <Icon className="size-6" />
+            <Icon className="size-5" />
+          </span>
+          <div>
+            <p className="font-semibold text-on-surface">{item.name}</p>
+            <p className="text-sm text-on-surface-variant">{count} 笔交易</p>
           </div>
-          {editing ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                aria-label="颜色"
-                className="size-8 shrink-0 cursor-pointer rounded-full border-0 bg-transparent p-0"
-              />
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                aria-label="名称"
-                maxLength={50}
-                className="h-9"
-              />
-            </div>
-          ) : (
-            <div>
-              <h3 className="font-semibold text-on-surface">{item.name}</h3>
-              <p className="text-sm text-on-surface-variant">{usage.count} 笔交易</p>
-            </div>
-          )}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          {editing ? (
-            <>
-              <button
-                type="button"
-                aria-label="保存"
-                disabled={update.isPending || name.trim().length === 0}
-                onClick={() => update.mutate({ id: item.id, name: name.trim(), color })}
-                className="text-primary transition-colors hover:opacity-80"
-              >
-                <Check className="size-5" />
-              </button>
-              <button
-                type="button"
-                aria-label="取消"
-                onClick={() => {
-                  setName(item.name);
-                  setColor(item.color ?? DEFAULT_COLOR);
-                  setEditing(false);
-                }}
-                className="text-on-surface-variant transition-colors hover:opacity-80"
-              >
-                <X className="size-5" />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                aria-label="编辑"
-                onClick={() => setEditing(true)}
-                className="text-on-surface-variant transition-colors hover:text-primary"
-              >
-                <Pencil className="size-5" />
-              </button>
-              <button
-                type="button"
-                aria-label="删除"
-                disabled={remove.isPending}
-                onClick={() => remove.mutate({ id: item.id })}
-                className="text-on-surface-variant transition-colors hover:text-error"
-              >
-                <Trash2 className="size-5" />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+        <ChevronRight
+          className={`size-5 text-on-surface-variant transition-transform ${open ? "rotate-90" : ""}`}
+        />
+      </button>
 
-      {!editing && usage.count > 0 ? (
-        <div className="mt-3 space-y-1">
-          <div className="flex justify-between text-sm font-semibold">
-            <span className="text-on-surface-variant">本月已用</span>
-            <span className="tabular" style={{ color: accent }}>
-              ¥ {centsToMajor(usage.spent)}
-            </span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-container-highest">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.round((usage.spent / maxSpent) * 100)}%`,
-                background: accent,
-              }}
-            />
-          </div>
+      {open ? (
+        <div className="flex items-center gap-2 border-t border-outline-variant/50 p-3">
+          <input
+            type="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            aria-label="颜色"
+            className="size-9 shrink-0 cursor-pointer rounded-full border-0 bg-transparent p-0"
+          />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-label="名称"
+            maxLength={50}
+            className="h-10"
+          />
+          <Button
+            size="icon-sm"
+            aria-label="保存"
+            disabled={update.isPending || name.trim().length === 0}
+            onClick={() => update.mutate({ id: item.id, name: name.trim(), color })}
+          >
+            <Check className="size-4" />
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="destructive"
+            aria-label="删除"
+            disabled={remove.isPending}
+            onClick={() => remove.mutate({ id: item.id })}
+          >
+            <Trash2 className="size-4" />
+          </Button>
         </div>
       ) : null}
     </div>
