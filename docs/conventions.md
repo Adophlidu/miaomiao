@@ -31,18 +31,22 @@ Strict config in `packages/config/tsconfig.base.json` (extended by every workspa
 - `module`/`moduleResolution`: `ESNext` / `bundler`; `isolatedModules: true`; ESM only (`type: module`) (tsconfig).
 - Avoid `any` — Biome `noExplicitAny` is on; use `unknown` + narrowing or a precise cast (inferred from the `env/web.ts` fix).
 - Validate all external input with **Zod v4** (tRPC `.input(z.object(...))`, env schemas) (inferred).
+- **Money is integer minor units (cents)** — never floats. Store `amount` as `integer` cents; the UI edits major units and converts at the boundary via `apps/web/src/lib/money.ts` (`majorToCents` / `centsToMajor` / `formatAmount`). Transaction sign is implied by `type` (`income | expense`), amount stored positive.
 
 ## Error Handling
 
 - **API layer:** throw `TRPCError` with a `code` (e.g. `"UNAUTHORIZED"`) from procedures; `protectedProcedure` centralizes the auth check (`packages/api/src/index.ts`) (framework default, already adopted).
+- **Cross-user access by id → `NOT_FOUND`** (never `FORBIDDEN`): for per-user rows, accessing/mutating another user's row by id returns `NOT_FOUND` so existence is not leaked. Verify ownership (`row.userId === ctx.session.user.id`) before mutating. Exemplars: `packages/api/src/routers/category.ts`, `transaction.ts`.
 - **Async:** `async/await` throughout; no `.then()` chains in app code (inferred).
 - **Client:** errors surface via a global `QueryCache.onError` → `sonner` toast; per-call `onError` handlers add context (`apps/web/src/utils/trpc.ts`) (inferred).
 - **Env:** invalid env fails fast at startup via `@t3-oss/env-core` (Zod) (`packages/env`).
 
 ## Testing
 
-- **No test framework is configured yet** — there is no `test` script and no test files (verified). `testGate.test` is `null` in the manifest.
-- When adding tests, **Vitest** is the conventional choice for this Vite/TS stack (framework default). Place unit tests next to source as `*.test.ts(x)`; register a `test` script per workspace and re-run `/d:init` to wire the test gate.
+- **Vitest** is the test framework. Run with `pnpm run test` (root `vitest run`); config in `vitest.config.ts`. This is the wired `testGate.test`.
+- Tests live under a workspace `test/` dir as `*.test.ts` (e.g. `packages/api/test/*.test.ts`).
+- **DB-independent tests run by default** — Zod input-contract tests (export the router input schemas to unit-test them) and pure helpers.
+- **DB-integration tests are guarded**: wrap them in `describe.skipIf(!process.env.TEST_DATABASE_URL)(...)` so the gate stays green without a live Postgres. Set `TEST_DATABASE_URL` to run them (per-user isolation, seeding idempotency, ordering, etc.).
 
 ## Formatting & Linting
 
@@ -68,7 +72,7 @@ Tooling **authored by /d:init** (none existed) — see "Authored Config" below.
 
 - `routeTree.gen.ts` is **generated** by the TanStack Router Vite plugin — never hand-edit; it is gitignored and Biome-ignored (`apps/web`).
 - `apps/web` `check-types` runs a full `vite build` then `tsc --noEmit` — it is slower than a bare typecheck; expect ~a few seconds.
-- The example `todoRouter` uses `publicProcedure` and is **not** user-scoped. Real 记账 data must use `protectedProcedure` and filter by `ctx.session.user.id` — do not copy the public access pattern for user data.
+- The example `todoRouter` uses `publicProcedure` and is **not** user-scoped — do NOT copy it for user data. The established per-user pattern is in `packages/api/src/routers/category.ts` and `transaction.ts` (`protectedProcedure`, filter by `ctx.session.user.id`, cross-user id → `NOT_FOUND`).
 - Catalog versions: bump shared deps in `pnpm-workspace.yaml` `catalog:`, not in individual `package.json` files.
 
 ## Authored Config (added by /d:init)

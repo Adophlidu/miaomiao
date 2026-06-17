@@ -75,7 +75,10 @@ From the repo root (`package.json` scripts):
 | `packages/ui/` | Shared shadcn (`base-lyra`) component library on `@base-ui/react`. |
 | `packages/config/` | Shared `tsconfig.base.json` extended by every workspace. |
 
-## Notes for Future Work (记账 domain)
+## 记账 domain (implemented — spec 0001)
 
-- The bundled `todo` feature (`packages/db/src/schema/todo.ts`, `packages/api/src/routers/todo.ts`, `apps/web/src/routes/todos.tsx`) is the canonical full-stack **exemplar** — copy its schema → router → route shape when adding accounting features (e.g. transactions, categories, accounts).
-- `todoRouter` currently uses `publicProcedure`; per-user accounting data should use `protectedProcedure` and scope queries by `ctx.session.user.id`.
+The bookkeeping core is the canonical full-stack exemplar (prefer it over the public `todo` example):
+- **Schema:** `packages/db/src/schema/category.ts`, `transaction.ts` (per-user, FKs to `user.id`, integer-cents `amount`).
+- **API:** `packages/api/src/routers/category.ts`, `transaction.ts` — all `protectedProcedure`, scoped by `ctx.session.user.id`, cross-user id → `NOT_FOUND`. Default categories seeded on first `category.list` (`packages/api/src/lib/seed-categories.ts`).
+- **Web:** `apps/web/src/routes/_auth/dashboard.tsx` (summary), `categories.tsx` (CRUD), `transactions.tsx` (record + bill list); money conversion in `apps/web/src/lib/money.ts`.
+- Money is stored as integer cents; the UI converts at the boundary. See `docs/conventions.md`.

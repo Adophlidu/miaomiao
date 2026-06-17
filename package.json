@@ -13,6 +13,7 @@
     "lint": "biome lint .",
     "format": "biome format .",
     "check": "biome check .",
+    "test": "vitest run",
     "dev:web": "pnpm --filter web dev",
     "dev:server": "pnpm --filter server dev",
     "db:push": "pnpm --filter @miaomiao/db db:push",
@@ -29,7 +30,8 @@
     "@biomejs/biome": "^2.5.0",
     "@miaomiao/config": "workspace:*",
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "packageManager": "pnpm@11.6.0"
 }
