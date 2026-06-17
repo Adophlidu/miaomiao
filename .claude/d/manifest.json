@@ -9,7 +9,7 @@
     "backend": "hono+trpc",
     "database": "postgres",
     "orm": "drizzle",
-    "test": null,
+    "test": "vitest",
     "pm": "pnpm"
   },
   "roles": ["d-pm", "d-frontend", "d-backend", "d-tester", "d-ui", "d-reviewer"],
@@ -20,7 +20,7 @@
     "extra": []
   },
   "testGate": {
-    "test": null,
+    "test": "pnpm run test",
     "build": "pnpm run build"
   },
   "uiBaseline": {
@@ -28,5 +28,5 @@
     "designSource": "docs/design.md",
     "tool": "playwright"
   },
-  "specCounter": 0
+  "specCounter": 1
 }
