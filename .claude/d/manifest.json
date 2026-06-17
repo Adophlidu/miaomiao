@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "initializedAt": "2026-06-17T03:07:58Z",
+  "lastAnalyzedCommit": "8fac0cec789aeb070a1283960e565c1c932c21b9",
+  "trunkBranch": "main",
+  "projectType": "fullstack",
+  "stack": {
+    "frontend": "react19+tanstack-router",
+    "backend": "hono+trpc",
+    "database": "postgres",
+    "orm": "drizzle",
+    "test": null,
+    "pm": "pnpm"
+  },
+  "roles": ["d-pm", "d-frontend", "d-backend", "d-tester", "d-ui", "d-reviewer"],
+  "qualityGate": {
+    "lint": "pnpm run lint",
+    "format": "pnpm run format",
+    "typecheck": "pnpm run check-types",
+    "extra": []
+  },
+  "testGate": {
+    "test": null,
+    "build": "pnpm run build"
+  },
+  "uiBaseline": {
+    "mode": "design",
+    "designSource": "docs/design.md",
+    "tool": "playwright"
+  },
+  "specCounter": 0
+}
