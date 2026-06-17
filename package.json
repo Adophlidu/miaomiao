@@ -10,6 +10,9 @@
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
     "check-types": "pnpm -r check-types",
+    "lint": "biome lint .",
+    "format": "biome format .",
+    "check": "biome check .",
     "dev:web": "pnpm --filter web dev",
     "dev:server": "pnpm --filter server dev",
     "db:push": "pnpm --filter @miaomiao/db db:push",
@@ -23,6 +26,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
     "@miaomiao/config": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:"
