@@ -51,7 +51,7 @@ Dark: warm espresso surfaces (`#251b16` …), `primary-fixed-dim` `#ffb783` acce
 3. **Record** (`/_auth/record`) — amount + 支出/收入 toggle + category chips + numeric keypad + paw "保存这一笔".
 4. **Bills** (`/_auth/transactions`) — income/expense summary + newest-first bill list.
 5. **Settings** (`/_auth/categories`) — profile card (avatar + name + email + edit), 外观设置 dark-mode switch, simplified category rows (icon + name + 笔数 + chevron → tap to expand inline rename/recolor/delete), add category, logout. (`screen-5-settings-refactor.png`)
-6. **Stats** (`/_auth/stats`) — friendly "coming soon" placeholder.
+6. **Stats** (`/_auth/stats`) — 收支统计: 支出/收入 segment + 周/月/年 range; total hero card (with cat-and-chart image + period-over-period delta); 支出分布 conic-gradient donut + proportion bars; 支出趋势 bar chart with peak highlight + insight. All computed client-side from `transaction.list` (no backend aggregation). (`screen-6-stats.png`)
 
 ## Motion
 
