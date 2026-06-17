@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.turbo
+.git
+.github
+**/.env
+**/*.log
+apps/web/src/routeTree.gen.ts
+docs
+.claude
