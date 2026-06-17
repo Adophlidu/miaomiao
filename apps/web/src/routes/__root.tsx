@@ -1,10 +1,7 @@
 import { Toaster } from "@miaomiao/ui/components/sonner";
 import type { QueryClient } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
-import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 import type { trpc } from "@/utils/trpc";
 
@@ -20,11 +17,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => ({
     meta: [
       {
-        title: "miaomiao",
+        title: "miaomiao · 猫管家",
       },
       {
         name: "description",
-        content: "miaomiao is a web application",
+        content: "miaomiao — 温暖的猫咪记账管家",
       },
     ],
     links: [
@@ -42,18 +39,18 @@ function RootComponent() {
       <HeadContent />
       <ThemeProvider
         attribute="class"
-        defaultTheme="dark"
+        defaultTheme="light"
         disableTransitionOnChange
-        storageKey="vite-ui-theme"
+        storageKey="miaomiao-theme"
       >
-        <div className="grid grid-rows-[auto_1fr] h-svh">
-          <Header />
-          <Outlet />
+        {/* App lives in a centered mobile column on any viewport. */}
+        <div className="flex min-h-svh justify-center bg-surface-dim/25">
+          <div className="relative min-h-svh w-full max-w-md bg-background">
+            <Outlet />
+          </div>
         </div>
-        <Toaster richColors />
+        <Toaster richColors position="top-center" />
       </ThemeProvider>
-      <TanStackRouterDevtools position="bottom-left" />
-      <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
     </>
   );
 }

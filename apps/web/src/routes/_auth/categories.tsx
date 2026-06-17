@@ -1,327 +1,377 @@
 import { Button } from "@miaomiao/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@miaomiao/ui/components/card";
 import { Input } from "@miaomiao/ui/components/input";
-import { Label } from "@miaomiao/ui/components/label";
-import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { Check, Loader2, Pencil, Trash2, X } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Check, LogOut, Moon, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import z from "zod";
 
+import { useTheme } from "@/components/theme-provider";
+import { authClient } from "@/lib/auth-client";
+import { categoryIcon } from "@/lib/category-icon";
+import { centsToMajor } from "@/lib/money";
 import { trpc } from "@/utils/trpc";
 import type { RouterOutputs } from "@/utils/trpc";
 
 type TxType = "income" | "expense";
-
 type Category = RouterOutputs["category"]["list"][number];
+type Usage = { count: number; spent: number };
 
-const DEFAULT_COLOR = "#E8A04B";
-
-const createCategorySchema = z.object({
-  name: z.string().trim().min(1, "请给类别起个名字，喵～").max(50, "名字太长啦"),
-  type: z.enum(["income", "expense"]),
-  color: z.string().regex(/^#([0-9a-fA-F]{6})$/, "颜色格式应为 #RRGGBB"),
-});
+const DEFAULT_COLOR = "#e67e22";
 
 export const Route = createFileRoute("/_auth/categories")({
-  component: CategoriesRoute,
+  component: SettingsRoute,
 });
 
-function CategoriesRoute() {
+function SettingsRoute() {
   const categories = useQuery(trpc.category.list.queryOptions());
+  const transactions = useQuery(trpc.transaction.list.queryOptions({}));
 
-  const createMutation = useMutation(
-    trpc.category.create.mutationOptions({
-      onSuccess: () => {
-        categories.refetch();
-        toast.success("类别已添加，喵～");
-      },
-    }),
-  );
+  const usage = new Map<number, Usage>();
+  for (const tx of transactions.data ?? []) {
+    const u = usage.get(tx.category.id) ?? { count: 0, spent: 0 };
+    u.count += 1;
+    u.spent += tx.amount;
+    usage.set(tx.category.id, u);
+  }
 
-  const form = useForm({
-    defaultValues: {
-      name: "",
-      type: "expense" as TxType,
-      color: DEFAULT_COLOR,
-    },
-    onSubmit: async ({ value, formApi }) => {
-      await createMutation.mutateAsync({
-        name: value.name,
-        type: value.type,
-        color: value.color,
-      });
-      formApi.reset();
-    },
-    validators: {
-      onSubmit: createCategorySchema,
-    },
-  });
-
-  const income = categories.data?.filter((c) => c.type === "income") ?? [];
   const expense = categories.data?.filter((c) => c.type === "expense") ?? [];
+  const income = categories.data?.filter((c) => c.type === "income") ?? [];
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-10">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-foreground">类别管理</h1>
-        <p className="mt-1 text-muted-foreground">整理你的收入与支出类别，喵～</p>
+    <div>
+      <header className="sticky top-0 z-40 flex h-16 items-center bg-surface px-5 soft-shadow">
+        <h1 className="font-display text-xl font-bold text-primary dark:text-primary-fixed-dim">
+          类别与主题
+        </h1>
       </header>
 
-      <Card className="mb-8 rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-base">新建类别</CardTitle>
-          <CardDescription>名字、类型与颜色。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              form.handleSubmit();
-            }}
-            className="flex flex-col gap-4 sm:flex-row sm:items-end"
-          >
-            <form.Field name="name">
-              {(field) => (
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor={field.name}>名称</Label>
-                  <Input
-                    id={field.name}
-                    name={field.name}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="例如：餐饮"
-                    className="rounded-xl"
-                  />
-                  {field.state.meta.errors.map((error) => (
-                    <p key={error?.message} className="text-xs text-destructive">
-                      {error?.message}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </form.Field>
+      <main className="space-y-6 px-5 pt-5">
+        <AppearanceSection />
 
-            <form.Field name="type">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor={field.name}>类型</Label>
-                  <select
-                    id={field.name}
-                    name={field.name}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value as TxType)}
-                    className="h-8 w-full rounded-xl border border-input bg-transparent px-2.5 py-1 text-xs outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 dark:bg-input/30"
-                  >
-                    <option value="expense">支出</option>
-                    <option value="income">收入</option>
-                  </select>
-                </div>
-              )}
-            </form.Field>
+        <CategorySection
+          title="支出类别"
+          type="expense"
+          items={expense}
+          usage={usage}
+          refetch={categories.refetch}
+        />
+        <CategorySection
+          title="收入类别"
+          type="income"
+          items={income}
+          usage={usage}
+          refetch={categories.refetch}
+        />
 
-            <form.Field name="color">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor={field.name}>颜色</Label>
-                  <input
-                    id={field.name}
-                    name={field.name}
-                    type="color"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    className="h-8 w-12 cursor-pointer rounded-xl border border-input bg-transparent p-1"
-                  />
-                </div>
-              )}
-            </form.Field>
-
-            <form.Subscribe
-              selector={(state) => ({
-                canSubmit: state.canSubmit,
-                isSubmitting: state.isSubmitting,
-              })}
-            >
-              {({ canSubmit, isSubmitting }) => (
-                <Button type="submit" className="rounded-xl" disabled={!canSubmit || isSubmitting}>
-                  {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : "添加"}
-                </Button>
-              )}
-            </form.Subscribe>
-          </form>
-        </CardContent>
-      </Card>
-
-      {categories.isLoading ? (
-        <div className="flex justify-center py-10">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        {/* Paws footer */}
+        <div className="py-2 text-center opacity-70">
+          <img
+            src="/illustrations/paws.png"
+            alt=""
+            className="mx-auto size-36 rounded-3xl object-cover"
+          />
+          <p className="mt-2 text-sm text-on-surface-variant">
+            点类别卡片右上角的铅笔即可改名字或颜色，喵～
+          </p>
         </div>
-      ) : (
-        <div className="grid gap-6 sm:grid-cols-2">
-          <CategoryGroup title="支出" items={expense} refetch={categories.refetch} />
-          <CategoryGroup title="收入" items={income} refetch={categories.refetch} />
-        </div>
-      )}
+
+        <LogoutButton />
+      </main>
     </div>
   );
 }
 
-function CategoryGroup({
-  title,
-  items,
-  refetch,
-}: {
-  title: string;
-  items: Category[];
-  refetch: () => void;
-}) {
+function AppearanceSection() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
   return (
-    <Card className="rounded-2xl">
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {items.length === 0 ? (
-          <p className="py-4 text-center text-muted-foreground">还没有类别，喵～</p>
-        ) : (
-          <ul className="space-y-2">
-            {items.map((item) => (
-              <CategoryRow key={item.id} item={item} refetch={refetch} />
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+    <section>
+      <h2 className="mb-3 font-display text-xl font-semibold text-on-surface">外观设置</h2>
+      <div className="flex items-center justify-between rounded-3xl bg-surface-container-low p-4 soft-shadow">
+        <div className="flex items-center gap-3">
+          <div className="flex size-11 items-center justify-center rounded-full bg-primary-fixed text-primary">
+            <Moon className="size-5" />
+          </div>
+          <div>
+            <p className="font-semibold text-on-surface">夜间模式</p>
+            <p className="text-sm text-on-surface-variant">让眼睛休息一下，切换到深色主题</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isDark}
+          aria-label="夜间模式"
+          onClick={() => setTheme(isDark ? "light" : "dark")}
+          className={`relative h-8 w-14 rounded-full transition-colors ${
+            isDark ? "bg-primary-container" : "bg-secondary-container"
+          }`}
+        >
+          <span
+            className={`absolute top-1 size-6 rounded-full bg-white transition-all ${
+              isDark ? "left-7" : "left-1"
+            }`}
+          />
+        </button>
+      </div>
+    </section>
   );
 }
 
-function CategoryRow({ item, refetch }: { item: Category; refetch: () => void }) {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(item.name);
-  const [type, setType] = useState<TxType>(item.type as TxType);
-  const [color, setColor] = useState(item.color ?? DEFAULT_COLOR);
-
-  const updateMutation = useMutation(
-    trpc.category.update.mutationOptions({
-      onSuccess: () => {
-        refetch();
-        setEditing(false);
-        toast.success("已保存，喵～");
-      },
-    }),
-  );
-
-  const deleteMutation = useMutation(
-    trpc.category.delete.mutationOptions({
-      onSuccess: () => {
-        refetch();
-        toast.success("已删除");
-      },
-    }),
-  );
-
-  if (editing) {
-    return (
-      <li className="flex items-center gap-2 rounded-xl border border-border p-2">
-        <input
-          type="color"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-          aria-label="颜色"
-          className="size-7 shrink-0 cursor-pointer rounded-lg border border-input bg-transparent p-0.5"
-        />
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          aria-label="名称"
-          className="rounded-xl"
-        />
-        <select
-          value={type}
-          onChange={(e) => setType(e.target.value as TxType)}
-          aria-label="类型"
-          className="h-8 rounded-xl border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 dark:bg-input/30"
-        >
-          <option value="expense">支出</option>
-          <option value="income">收入</option>
-        </select>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="保存"
-          disabled={updateMutation.isPending || name.trim().length === 0}
-          onClick={() =>
-            updateMutation.mutate({
-              id: item.id,
-              name: name.trim(),
-              type,
-              color,
-            })
-          }
-        >
-          {updateMutation.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Check className="size-4" />
-          )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="取消"
-          onClick={() => {
-            setName(item.name);
-            setType(item.type as TxType);
-            setColor(item.color ?? DEFAULT_COLOR);
-            setEditing(false);
-          }}
-        >
-          <X className="size-4" />
-        </Button>
-      </li>
-    );
-  }
+function CategorySection({
+  title,
+  type,
+  items,
+  usage,
+  refetch,
+}: {
+  title: string;
+  type: TxType;
+  items: Category[];
+  usage: Map<number, Usage>;
+  refetch: () => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const maxSpent = Math.max(1, ...items.map((c) => usage.get(c.id)?.spent ?? 0));
 
   return (
-    <li className="flex items-center justify-between gap-2 rounded-xl border border-border p-2">
-      <div className="flex min-w-0 items-center gap-2">
-        <span
-          className="size-3 shrink-0 rounded-full"
-          style={{ backgroundColor: item.color ?? "var(--muted-foreground)" }}
-          aria-hidden
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-semibold text-on-surface">{title}</h2>
+        <Button size="sm" onClick={() => setAdding((v) => !v)}>
+          <Plus className="size-4" />
+          新增类别
+        </Button>
+      </div>
+
+      {adding ? (
+        <AddCategoryForm
+          type={type}
+          onDone={() => {
+            setAdding(false);
+            refetch();
+          }}
         />
-        <span className="truncate text-foreground">{item.name}</span>
-      </div>
-      <div className="flex shrink-0 items-center">
-        <Button variant="ghost" size="icon" aria-label="编辑" onClick={() => setEditing(true)}>
-          <Pencil className="size-4" />
-        </Button>
-        <Button
-          variant="destructive"
-          size="icon"
-          aria-label="删除"
-          disabled={deleteMutation.isPending}
-          onClick={() => deleteMutation.mutate({ id: item.id })}
-        >
-          {deleteMutation.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
+      ) : null}
+
+      {items.length === 0 ? (
+        <p className="rounded-3xl bg-surface-container-low p-6 text-center text-on-surface-variant soft-shadow">
+          还没有{title}，喵～
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {items.map((c) => (
+            <CategoryCard
+              key={c.id}
+              item={c}
+              usage={usage.get(c.id) ?? { count: 0, spent: 0 }}
+              maxSpent={maxSpent}
+              refetch={refetch}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AddCategoryForm({ type, onDone }: { type: TxType; onDone: () => void }) {
+  const [name, setName] = useState("");
+  const [color, setColor] = useState(DEFAULT_COLOR);
+  const create = useMutation(
+    trpc.category.create.mutationOptions({
+      onSuccess: () => {
+        toast.success("类别已添加，喵～");
+        onDone();
+      },
+    }),
+  );
+  return (
+    <div className="flex items-center gap-2 rounded-3xl bg-surface-container-low p-3 soft-shadow">
+      <input
+        type="color"
+        value={color}
+        onChange={(e) => setColor(e.target.value)}
+        aria-label="颜色"
+        className="size-10 shrink-0 cursor-pointer rounded-full border-0 bg-transparent p-0"
+      />
+      <Input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="类别名称"
+        maxLength={50}
+      />
+      <Button
+        size="icon-sm"
+        aria-label="保存"
+        disabled={create.isPending || name.trim().length === 0}
+        onClick={() => create.mutate({ name: name.trim(), type, color })}
+      >
+        <Check className="size-4" />
+      </Button>
+    </div>
+  );
+}
+
+function CategoryCard({
+  item,
+  usage,
+  maxSpent,
+  refetch,
+}: {
+  item: Category;
+  usage: Usage;
+  maxSpent: number;
+  refetch: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(item.name);
+  const [color, setColor] = useState(item.color ?? DEFAULT_COLOR);
+  const Icon = categoryIcon(item.name);
+  const accent = item.color ?? "var(--primary-container)";
+
+  const update = useMutation(
+    trpc.category.update.mutationOptions({
+      onSuccess: () => {
+        toast.success("已保存，喵～");
+        setEditing(false);
+        refetch();
+      },
+    }),
+  );
+  const remove = useMutation(
+    trpc.category.delete.mutationOptions({
+      onSuccess: () => {
+        toast.success("已删除");
+        refetch();
+      },
+    }),
+  );
+
+  return (
+    <div
+      className="rounded-3xl bg-surface-container p-4 soft-shadow"
+      style={{ borderLeft: `8px solid ${accent}` }}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex size-12 items-center justify-center rounded-full bg-white"
+            style={{ color: accent }}
+          >
+            <Icon className="size-6" />
+          </div>
+          {editing ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                aria-label="颜色"
+                className="size-8 shrink-0 cursor-pointer rounded-full border-0 bg-transparent p-0"
+              />
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                aria-label="名称"
+                maxLength={50}
+                className="h-9"
+              />
+            </div>
           ) : (
-            <Trash2 className="size-4" />
+            <div>
+              <h3 className="font-semibold text-on-surface">{item.name}</h3>
+              <p className="text-sm text-on-surface-variant">{usage.count} 笔交易</p>
+            </div>
           )}
-        </Button>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {editing ? (
+            <>
+              <button
+                type="button"
+                aria-label="保存"
+                disabled={update.isPending || name.trim().length === 0}
+                onClick={() => update.mutate({ id: item.id, name: name.trim(), color })}
+                className="text-primary transition-colors hover:opacity-80"
+              >
+                <Check className="size-5" />
+              </button>
+              <button
+                type="button"
+                aria-label="取消"
+                onClick={() => {
+                  setName(item.name);
+                  setColor(item.color ?? DEFAULT_COLOR);
+                  setEditing(false);
+                }}
+                className="text-on-surface-variant transition-colors hover:opacity-80"
+              >
+                <X className="size-5" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                aria-label="编辑"
+                onClick={() => setEditing(true)}
+                className="text-on-surface-variant transition-colors hover:text-primary"
+              >
+                <Pencil className="size-5" />
+              </button>
+              <button
+                type="button"
+                aria-label="删除"
+                disabled={remove.isPending}
+                onClick={() => remove.mutate({ id: item.id })}
+                className="text-on-surface-variant transition-colors hover:text-error"
+              >
+                <Trash2 className="size-5" />
+              </button>
+            </>
+          )}
+        </div>
       </div>
-    </li>
+
+      {!editing && usage.count > 0 ? (
+        <div className="mt-3 space-y-1">
+          <div className="flex justify-between text-sm font-semibold">
+            <span className="text-on-surface-variant">本月已用</span>
+            <span className="tabular" style={{ color: accent }}>
+              ¥ {centsToMajor(usage.spent)}
+            </span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-container-highest">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${Math.round((usage.spent / maxSpent) * 100)}%`,
+                background: accent,
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function LogoutButton() {
+  const navigate = useNavigate();
+  return (
+    <Button
+      variant="outline"
+      className="w-full"
+      onClick={() =>
+        authClient.signOut({
+          fetchOptions: { onSuccess: () => navigate({ to: "/login" }) },
+        })
+      }
+    >
+      <LogOut className="size-5" />
+      退出登录
+    </Button>
   );
 }
