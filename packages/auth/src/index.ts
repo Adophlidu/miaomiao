@@ -21,8 +21,11 @@ export function createAuth() {
     baseURL: env.BETTER_AUTH_URL,
     advanced: {
       defaultCookieAttributes: {
-        sameSite: "none",
-        secure: true,
+        // HTTPS deploys: cross-site cookies (secure + sameSite none).
+        // Plain-HTTP deploys (a bare public IP, no domain): browsers drop
+        // `secure` cookies, so fall back to a same-site lax, non-secure cookie.
+        sameSite: env.BETTER_AUTH_URL.startsWith("https") ? "none" : "lax",
+        secure: env.BETTER_AUTH_URL.startsWith("https"),
         httpOnly: true,
       },
     },
