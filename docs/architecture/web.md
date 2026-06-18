@@ -10,13 +10,15 @@ The single-page client: file-based routing, data fetching via tRPC + TanStack Qu
 - `src/routes/__root.tsx` — root layout: `ThemeProvider` (dark default), `Header`, `Toaster`, devtools; declares router context (`trpc`, `queryClient`).
 - `src/utils/trpc.ts` — tRPC client (`httpBatchLink` → `${VITE_SERVER_URL}/trpc`, `credentials: "include"`), shared `QueryClient` with a global `onError` toast, and the `trpc` options proxy. Imports `AppRouter` **as a type only**.
 - `src/lib/auth-client.ts` — better-auth React client (`createAuthClient`).
-- `src/routes/_auth/route.tsx` — protected layout; `beforeLoad` redirects to `/login` when there is no session.
-- `src/routes/todos.tsx` — canonical data-driven route (query + mutations + optimistic refetch) — the exemplar for new feature pages.
+- `src/routes/_auth/route.tsx` — protected layout; `beforeLoad` redirects to `/login` when there is no session. Hosts the 记账 pages + `BottomNav`.
+- `src/routes/_auth/dashboard.tsx` / `transactions.tsx` / `record.tsx` / `categories.tsx` / `stats.tsx` — the 记账 feature pages (summary, bill list, record entry, category CRUD, stats). **`transactions.tsx` is the canonical data-driven exemplar** (query + mutations against the `trpc` proxy) — prefer it over `todos.tsx` for new pages.
+- `src/lib/money.ts` — money boundary helpers (`majorToCents` / `centsToMajor` / `formatAmount`); UI edits major units, API stores integer cents.
+- `src/routes/todos.tsx` — leftover scaffold example route (public `todo` router); reference only, not user-scoped.
 - `src/components/sign-in-form.tsx` / `sign-up-form.tsx` — TanStack Form + Zod validation against `authClient`.
 
 ## Public Interface
 
-This is an app, not a library — its "interface" is the route tree (`/`, `/login`, `/todos`, `/_auth/dashboard`) and the HTTP/tRPC calls it makes to the server.
+This is an app, not a library — its "interface" is the route tree (`/`, `/login`, `/todos`, and the protected `/_auth/dashboard`, `/_auth/transactions`, `/_auth/record`, `/_auth/categories`, `/_auth/stats`) and the HTTP/tRPC calls it makes to the server.
 
 ## Dependencies
 

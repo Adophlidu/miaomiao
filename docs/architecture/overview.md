@@ -35,13 +35,13 @@ apps/web (React/TanStack)  ──tRPC HTTP──▶  apps/server (Hono)
 
 ## Data Flow (one request end-to-end)
 
-Todo list fetch (`trpc.todo.getAll`):
+Transaction list fetch (`trpc.transaction.list`, the canonical user-scoped path):
 
-1. `apps/web/src/routes/todos.tsx` — `useQuery(trpc.todo.getAll.queryOptions())`.
+1. `apps/web/src/routes/_auth/transactions.tsx` — `useQuery(trpc.transaction.list.queryOptions(...))`.
 2. `apps/web/src/utils/trpc.ts` — `httpBatchLink` POSTs to `${VITE_SERVER_URL}/trpc` with `credentials: "include"`.
 3. `apps/server/src/index.ts` — `trpcServer({ router: appRouter, createContext })` mounted at `/trpc/*`.
 4. `packages/api/src/context.ts` — `createContext` resolves the better-auth session from request headers.
-5. `packages/api/src/routers/todo.ts` — `todoRouter.getAll` runs `db.select().from(todo)`.
+5. `packages/api/src/routers/transaction.ts` — `protectedProcedure` rejects when `ctx.session` is null, then `transactionRouter.list` queries scoped by `ctx.session.user.id`.
 6. `packages/db/src/index.ts` — Drizzle client (`createDb()`) queries Postgres; rows return up the same path, fully typed.
 
 Auth requests take a separate path: `app.on(["POST","GET"], "/api/auth/*", c => auth.handler(c.req.raw))` (`apps/server/src/index.ts`).
@@ -61,6 +61,15 @@ From the repo root (`package.json` scripts):
 - `pnpm run check-types` — typecheck all workspaces.
 - `pnpm run lint` / `pnpm run format` / `pnpm run check` — Biome (authored by /d:init).
 - `pnpm run db:push` / `db:generate` / `db:migrate` / `db:studio` — Drizzle schema ops (delegate to `@miaomiao/db`).
+
+## Deployment (AWS — target architecture, not yet executed)
+
+Full runbook: `deploy/aws-deploy.md`. Region **ap-southeast-1**, lowest-ops managed services:
+
+- **Web** (`apps/web`) → **Amplify Hosting** (`amplify.yml`): builds `pnpm --filter web build`, serves `apps/web/dist` with an SPA rewrite to `/index.html`. Needs `VITE_SERVER_URL` = the server URL.
+- **Server** (`apps/server`) → **App Runner**, source-based (`apprunner.yaml`, `runtime: nodejs22`, port 3000): builds `pnpm --filter server build`, runs `node apps/server/dist/index.mjs`. A `Dockerfile` (multi-stage `node:22-slim`) is also provided as an alternative/portable image.
+- **Database** → **RDS PostgreSQL** (private, reached via an App Runner VPC connector). Apply the baseline migration with `pnpm run db:migrate`.
+- **Secrets/config** → **Secrets Manager** (`DATABASE_URL`, `BETTER_AUTH_SECRET`) + service env (`BETTER_AUTH_URL`, `CORS_ORIGIN`). Cross-site auth cookies are `secure` + `sameSite:none`, so both URLs must be HTTPS.
 
 ## Directory Map
 
