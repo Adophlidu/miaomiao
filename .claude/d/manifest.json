@@ -1,7 +1,7 @@
 {
   "version": 1,
   "initializedAt": "2026-06-17T03:07:58Z",
-  "lastAnalyzedCommit": "8fac0cec789aeb070a1283960e565c1c932c21b9",
+  "lastAnalyzedCommit": "7e60e234e39ae4eaf3f4ab51c37bfa322727e438",
   "trunkBranch": "main",
   "projectType": "fullstack",
   "stack": {
@@ -28,5 +28,6 @@
     "designSource": "docs/design.md",
     "tool": "playwright"
   },
-  "specCounter": 1
+  "specCounter": 1,
+  "statusLine": { "installed": true, "scope": "global", "wrapped": true }
 }

@@ -49,6 +49,7 @@ coverage
 
 # Claude Code (personal, machine-local)
 .claude/settings.local.json
+.claude/d/status.json
 
 # Misc
 *.tgz
